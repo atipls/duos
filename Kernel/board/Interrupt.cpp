@@ -15,9 +15,7 @@ void __attribute__((interrupt("FIQ"))) FiqHandler() {}
 #pragma GCC diagnostic pop
 }
 
-extern "C" __attribute__((unused)) void IrqHandler() {
-    Uart::Write("irq\n");
-
+extern "C" void IrqHandler() {
     for (int i = 0; i < NUMBER_OF_INTERRUPTS; i++) {
         if (Interrupt::IsPending(i) && Interrupt::Handle(i))
             return;
@@ -36,10 +34,7 @@ void Interrupt::Initialize() {
     INTERRUPT->disableIrq1 = 0xFFFFFFFF;
     INTERRUPT->disableIrq2 = 0xFFFFFFFF;
 
-    RW32 *OldVectors = (RW32 *) 0x0;
-    for (int i = 0; i < 8; i++)
-        OldVectors[i] = ExceptionVectors[i];
-
+    MoveExceptionVectors();
     Enable();
 }
 

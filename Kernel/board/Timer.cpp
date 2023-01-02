@@ -14,8 +14,6 @@ static void TimerIrqClearer() {
 
 void Timer::Initialize() {
     Interrupt::Register(1, TimerIrqHandler, TimerIrqClearer);
-    TIMER->cs |= 1 << 5; // Timer 1 interrupt enable
-    TIMER->cs |= 1 << 7; // Timer 1 enable
 }
 
 u32 Timer::GetTicks() {
