@@ -37,25 +37,20 @@ extern "C" [[noreturn]] __attribute__((unused)) void KernelMain(usize r0, usize 
     Uart::Initialize();
     Uart::Write("Hello, world\n");
 
-    //Interrupt::Initialize();
+    Interrupt::Initialize();
 
-
-    //Timer::Initialize();
-
-    //Timer::Alert(1000);
+    Timer::Initialize();
+    Timer::Alert(1000);
 
     while (true) {
-
         if (Interrupt::IsPending(1)) {
-            Uart::Write("Timer interrupt!\n");
+            Uart::Write("Timer interrupt PENDING!\n");
         } else {
-            Uart::Write("No timer interrupt!\n");
+            Uart::Write("No timer interrupt PENDING!\n");
         }
-        while(true) {}
-
 
         Gpio::ModifyPin(47, true);
-        // Uart::Write("Hello!");
+        //Uart::Write("Hello!");
         Delay(1500000);
         Gpio::ModifyPin(47, false);
 

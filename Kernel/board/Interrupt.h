@@ -20,7 +20,7 @@ using InterruptClearer = void (*)();
 
 #define NUMBER_OF_INTERRUPTS 72
 
-#define INTERRUPT ((InterruptBase *) (MMIO_BASE + 0xB000))
+#define INTERRUPT ((InterruptBase *) (MMIO_BASE + 0xB200))
 
 namespace Interrupt {
     void Initialize();
