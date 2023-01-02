@@ -44,5 +44,5 @@ namespace Gpio {
     void DisablePin(u32 pin);
 
     void ConfigurePin(u32 pin, Function function);
-    void ModifyPin(u32 pin, bool value);
+    void Put(u32 pin, bool value);
 }// namespace Gpio

@@ -28,9 +28,9 @@ extern "C" [[noreturn]] __attribute__((unused)) void KernelMain(usize r0, usize 
     Gpio::ConfigurePin(47, Gpio::Function::Output);
 
     for (int i = 0; i < 20; i++) {
-        Gpio::ModifyPin(47, true);
+        Gpio::Put(47, true);
         Delay(1500000);
-        Gpio::ModifyPin(47, false);
+        Gpio::Put(47, false);
         Delay(1500000);
     }
 
@@ -43,10 +43,10 @@ extern "C" [[noreturn]] __attribute__((unused)) void KernelMain(usize r0, usize 
     Timer::Alert(1000);
 
     while (true) {
-        Gpio::ModifyPin(47, true);
+        Gpio::Put(47, true);
         Uart::Write("Hello!");
         Delay(1500000);
-        Gpio::ModifyPin(47, false);
+        Gpio::Put(47, false);
 
         Delay(1500000);
     }

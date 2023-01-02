@@ -32,7 +32,7 @@ void Gpio::ConfigurePin(u32 pin, Function function) {
     GPIO->gpfSel[reg] = selector;
 }
 
-void Gpio::ModifyPin(u32 pin, bool value) {
+void Gpio::Put(u32 pin, bool value) {
     if (value) {
         GPIO->gpSet.data[pin / 32] = 1 << (pin % 32);
     } else {
