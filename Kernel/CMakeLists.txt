@@ -8,7 +8,8 @@ set(KERNEL_SOURCES
         board/Uart.cpp
         board/Interrupt.cpp
         board/Timer.cpp
-        )
+        mem/Memory.cpp
+        task/Task.cpp util/Runtime.cpp util/Runtime.h)
 
 include_directories(.)
 add_executable(Kernel ${KERNEL_SOURCES})

@@ -1,9 +1,10 @@
 #include "Timer.h"
 #include "Interrupt.h"
 #include "Uart.h"
+#include "task/Task.h"
 
 static void TimerIrqHandler() {
-    Uart::Write("TimerIrqHandler\n");
+    Tasks::Preeempt();
 
     Timer::Alert(1000);
 }
@@ -30,4 +31,8 @@ void Timer::Delay(u32 usecs) {
     RW32 target = TIMER->clo - current;
     while (target < usecs)
         target = TIMER->clo - current;
+}
+
+extern "C" void timer_set(u32 usecs) {
+    Timer::Alert(usecs);
 }

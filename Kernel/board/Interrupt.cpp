@@ -6,12 +6,12 @@ void MoveExceptionVectors();
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wattributes"
-void __attribute__((interrupt("ABORT"))) ResetHandler() {}
-void __attribute__((interrupt("UNDEF"))) UndefinedInstructionHandler() {}
-void __attribute__((interrupt("SWI"))) SoftwareInterruptHandler() {}
-void __attribute__((interrupt("ABORT"))) PrefetchAbortHandler() {}
-void __attribute__((interrupt("ABORT"))) DataAbortHandler() {}
-void __attribute__((interrupt("FIQ"))) FiqHandler() {}
+void __attribute__((interrupt("ABORT"))) ResetHandler() { while (1) {} }
+void __attribute__((interrupt("UNDEF"))) UndefinedInstructionHandler() { while (1) {} }
+void __attribute__((interrupt("SWI"))) SoftwareInterruptHandler() { while (1) {} }
+void __attribute__((interrupt("ABORT"))) PrefetchAbortHandler() { while (1) {} }
+void __attribute__((interrupt("ABORT"))) DataAbortHandler() { while (1) {} }
+void __attribute__((interrupt("FIQ"))) FiqHandler() { while (1) {} }
 #pragma GCC diagnostic pop
 }
 

@@ -1,5 +1,6 @@
 #include "board/Interrupt.h"
 #include "board/Timer.h"
+#include "task/Task.h"
 #include <Ati/Types.h>
 #include <board/Gpio.h>
 #include <board/Uart.h>
@@ -40,11 +41,23 @@ extern "C" [[noreturn]] __attribute__((unused)) void KernelMain(usize r0, usize 
     Interrupt::Initialize();
 
     Timer::Initialize();
-    Timer::Alert(1000);
+    Tasks::Initialize();
+
+    Tasks::Create([]() {
+        while (true) {
+            Uart::Write("Hello from Task 1\n");
+        }
+    }, TaskKind_Kernel, "Kernel Task 1");
+
+    Tasks::Create([]() {
+        while (true) {
+            Uart::Write("Hello from Task 2\n");
+        }
+    }, TaskKind_Kernel, "Kernel Task 2");
 
     while (true) {
         Gpio::Put(47, true);
-        Uart::Write("Hello!");
+        Uart::Write("Hello!\n");
         Delay(1500000);
         Gpio::Put(47, false);
 
