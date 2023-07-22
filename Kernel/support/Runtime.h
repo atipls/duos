@@ -8,5 +8,5 @@ namespace Runtime {
     void Zero(void *dst, usize size);
     void Move(void *dst, void const *src, usize size);
 
-    usize Length(char const *str);
+    usize StringLength(char const *str);
 }

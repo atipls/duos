@@ -1,25 +1,44 @@
 #pragma once
 #include <Ati/Types.h>
+#include <new>
+
+#define PAGE_SIZE 4096
+#define KERNEL_HEAP_SIZE (1024 * 1024 * 32) // 32 MiB
+#define KERNEL_STACK_SIZE (PAGE_SIZE * 32) // 128 KiB
+
+
+struct PageFlags {
+    u8 isAllocated : 1;
+    u8 isKernelData : 1;
+    u8 isKernelHeap : 1;
+    u32 reserved : 29;
+};
+
+struct Page {
+    usize address;
+    PageFlags flags;
+
+    Page *prev;
+    Page *next;
+};
 
 namespace Memory {
-    void Initialize();
+    void Initialize(usize atagsAddress);
+
+    void *AllocatePage();
+    void DeallocatePage(void *address);
 
     void *Allocate(usize size);
-    void Free(void *ptr);
+    void Deallocate(void *address);
 
 }// namespace Memory
 
 template<typename T>
 T *allocate() {
-    return (T *) Memory::Allocate(sizeof(T));
+    return (T *)  Memory::Allocate(sizeof(T));
 }
 
 template<typename T>
-T *allocate(usize count) {
-    return (T *) Memory::Allocate(sizeof(T) * count);
-}
-
-template<typename T>
-void deallocate(T *ptr) {
-    Memory::Free(ptr);
+void deallocate(T *address) {
+    Memory::Deallocate(address);
 }

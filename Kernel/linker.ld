@@ -2,11 +2,14 @@ ENTRY(_start)
 
 SECTIONS
 {
+    __text_start = .;
+    . = 0x8000;
     .text : {
         KEEP(*(.text.boot))
         *(.text)
     }
     . = ALIGN(4096);
+    __text_end = .;
 
     .rodata : {
         *(.rodata)
@@ -15,6 +18,10 @@ SECTIONS
 
     .data : {
         *(.data)
+
+        __exception_stack_end = .;
+        . += 0x4000;
+        __exception_stack_start = .;
     }
     . = ALIGN(4096);
 
@@ -28,6 +35,5 @@ SECTIONS
     __bss_end = .;
     __bss_size = __bss_end - __bss_start;
 
-    __stack_start = .;
-
+    __binary_end = .;
 }

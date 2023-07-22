@@ -1,26 +1,10 @@
 #pragma once
+#include "Registers.h"
 
-#include "Gpio.h"
-
-struct InterruptBase {
-    RW32 irqBasicPending;
-    RW32 irqPending1;
-    RW32 irqPending2;
-    RW32 fiqControl;
-    RW32 enableIrq1;
-    RW32 enableIrq2;
-    RW32 enableBasicIrq;
-    RW32 disableIrq1;
-    RW32 disableIrq2;
-    RW32 disableBasicIrq;
-};
-
-using InterruptHandler = void (*)();
-using InterruptClearer = void (*)();
+#define ARM_OPCODE_BRANCH(distance)	(0xEA000000 | (distance))
+#define ARM_DISTANCE(from, to)		((u32 *) &(to) - (u32 *) &(from) - 2)
 
 #define NUMBER_OF_INTERRUPTS 72
-
-#define INTERRUPT ((InterruptBase *) (MMIO_BASE + 0xB200))
 
 namespace Interrupt {
     void Initialize();
@@ -30,7 +14,7 @@ namespace Interrupt {
     void Enable();
     void Disable();
 
-    void Register(usize irq, InterruptHandler handler, InterruptClearer clearer);
+    void Register(usize irq, void (*handler)(void *), void *userData = nullptr);
     void Unregister(usize irq);
 
     inline bool IsBasic(usize irq) { return irq >= 64; }
@@ -40,5 +24,4 @@ namespace Interrupt {
     bool IsPending(usize irq);
 
     bool Handle(usize irq);
-
-};
+};// namespace Interrupt

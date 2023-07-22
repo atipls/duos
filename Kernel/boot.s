@@ -1,10 +1,9 @@
 .section ".text.boot"
-.org 0x8000
-
 .global _start
 
 _start:
-  mov sp, #0x8000
+  ldr sp, =__binary_end
+  add sp, sp, #0x20000 // 128KB stack, must match up with task stack size
 
   ldr r4, =__bss_start
   ldr r9, =__bss_end
@@ -26,65 +25,3 @@ _start:
 
 halt:
     b halt
-
-.section ".text"
-
-.global MoveExceptionVectors
-.global IrqHandlerWrapper
-.global SwitchToTask
-.global ExceptionVectors
-
-ExceptionVectors:
-  ldr pc, ResetHandlerAddress
-  ldr pc, UndefinedInstructionHandlerAddress
-  ldr pc, SoftwareInterruptHandlerAddress
-  ldr pc, PrefetchAbortHandlerAddress
-  ldr pc, DataAbortHandlerAddress
-  nop // Reserved.
-  ldr pc, IrqHandlerAddress
-  ldr pc, FiqHandlerAddress
-
-ResetHandlerAddress:                .word ResetHandler
-UndefinedInstructionHandlerAddress: .word UndefinedInstructionHandler
-SoftwareInterruptHandlerAddress:    .word SoftwareInterruptHandler
-PrefetchAbortHandlerAddress:        .word PrefetchAbortHandler
-DataAbortHandlerAddress:            .word DataAbortHandler
-IrqHandlerAddress:                  .word IrqHandlerWrapper
-FiqHandlerAddress:                  .word FiqHandler
-
-MoveExceptionVectors:
-    push  {r4-r9}
-    ldr   r0, =ExceptionVectors
-    mov   r1, #0x0000
-    ldmia r0!,{r2-r9}
-    stmia r1!,{r2-r9}
-    ldmia r0!,{r2-r8}
-    stmia r1!,{r2-r8}
-    pop   {r4-r9}
-    blx   lr
-
-IrqHandlerWrapper:
-    sub   lr, lr, #4
-    srsdb sp!, #0x13
-    cpsid if, #0x13
-    push  {r0-r3, r12, lr}
-    and   r1, sp, #4
-    sub   sp, sp, r1
-    push  {r1}
-    bl    IrqHandler
-    pop   {r1}
-    add   sp, sp, r1
-    pop   {r0-r3, r12, lr}
-    rfeia sp!
-
-SwitchToTask:
-    push {lr}
-    push {sp}
-    mrs r12, cpsr
-    push {r0-r12}
-    str sp, [r0]
-
-    ldr sp, [r1]
-    pop {r0-r12}
-    msr cpsr, r12
-    pop {lr, pc}

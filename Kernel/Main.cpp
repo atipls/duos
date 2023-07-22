@@ -1,66 +1,92 @@
-#include "board/Interrupt.h"
-#include "board/Timer.h"
-#include "task/Task.h"
+#include "Kernel/tasks/Proxy.h"
 #include <Ati/Types.h>
+#include <board/Framebuffer.h>
 #include <board/Gpio.h>
+#include <board/Interrupt.h>
+#include <board/Timer.h>
 #include <board/Uart.h>
 
-namespace __cxxabiv1 {
-    __extension__ typedef int __guard __attribute__((mode(__DI__)));
-    extern "C" int __cxa_guard_acquire(__guard *);
-    extern "C" void __cxa_guard_release(__guard *);
-    extern "C" void __cxa_guard_abort(__guard *);
+#include <mem/Memory.h>
 
-    extern "C" int __cxa_guard_acquire(__guard *g) { return !*(char *) (g); }
-    extern "C" void __cxa_guard_release(__guard *g) { *(char *) g = 1; }
-    extern "C" void __cxa_guard_abort(__guard *) {}
-}// namespace __cxxabiv1
+#include <task/Task.h>
+#include <usb/uspi.h>
 
-void Delay(u32 clocks) {
+void DelayClocks(usize clocks) {
     for (u32 i = 0; i < clocks; i++) {
         asm volatile("nop");
     }
 }
 
-extern "C" [[noreturn]] __attribute__((unused)) void KernelMain(usize r0, usize r1, usize atags) {
-    GPIO->gpfSel[3] &= ~(7 << 21);
-    GPIO->gpfSel[3] |= (1 << 21);
+#define SCREEN_WIDTH 1280
+#define SCREEN_HEIGHT 720
+#define SCREEN_DEPTH 32
 
-    Gpio::ConfigurePin(47, Gpio::Function::Output);
+static void KeyPressedHandler(const char *pString) {
+    Uart::Writef("Key pressed: %s\n", pString);
+}
 
-    for (int i = 0; i < 20; i++) {
-        Gpio::Put(47, true);
-        Delay(1500000);
-        Gpio::Put(47, false);
-        Delay(1500000);
+static void MouseHandler(u32 buttons, i32 dx, i32 dy) {
+    Uart::Writef("Mouse status: %d (%d;%d)\n", buttons, dx, dy);
+}
+
+static void KernelThread() {
+    while (true) {
+        Gpio::Set(47, true);
+        Uart::Write("Hello from thread two!\n");
+        DelayClocks(1500000);
+        Gpio::Set(47, false);
+
+        DelayClocks(1500000);
     }
+}
 
+extern "C" [[noreturn]] __attribute__((unused)) void KernelMain(usize r0, usize r1, usize atagsAddress) {
     Uart::Initialize();
-    Uart::Write("Hello, world\n");
-
+    Memory::Initialize(atagsAddress);
     Interrupt::Initialize();
 
-    Timer::Initialize();
+    if (!Framebuffer::Initialize(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_DEPTH)) {
+        Uart::Write("Failed to initialize the framebuffer!\n");
+    }
+
+    auto framebuffer = Framebuffer::GetInformation();
+    auto address = (volatile u8 *) framebuffer->address;
+
+    // Fancy rainbow
+    for (int y = 0; y < framebuffer->height; y++) {
+        for (int x = 0; x < framebuffer->width; x++) {
+            u32 offset = y * framebuffer->pitch + x * (framebuffer->depth / 8);
+            address[offset] = x * 255 / framebuffer->width;
+            address[offset + 1] = y * 255 / framebuffer->height;
+            address[offset + 2] = 255 - x * 255 / framebuffer->width;
+            address[offset + 3] = 255;
+        }
+    }
+
     Tasks::Initialize();
 
-    Tasks::Create([]() {
-        while (true) {
-            Uart::Write("Hello from Task 1\n");
-        }
-    }, TaskKind_Kernel, "Kernel Task 1");
+#if 1
+    if (!USPiInitialize()) {
+        Uart::Write("Failed to initialize the USB stack!\n");
+    }
 
-    Tasks::Create([]() {
-        while (true) {
-            Uart::Write("Hello from Task 2\n");
-        }
-    }, TaskKind_Kernel, "Kernel Task 2");
+    if (!USPiKeyboardAvailable()) {
+        Uart::Write("No keyboard detected!\n");
+    }
+
+    USPiKeyboardRegisterKeyPressedHandler(KeyPressedHandler);
+    USPiMouseRegisterStatusHandler(MouseHandler);
+#endif
+
+    Tasks::Create(Proxy::TaskEntry, TaskKind_Kernel, "Proxy Client");
+    // Tasks::Create(KernelThread, TaskKind_Kernel, "Test thread");
 
     while (true) {
-        Gpio::Put(47, true);
+        Gpio::Set(47, true);
         Uart::Write("Hello!\n");
-        Delay(1500000);
-        Gpio::Put(47, false);
+        DelayClocks(150000000);
+        Gpio::Set(47, false);
 
-        Delay(1500000);
+        DelayClocks(1500000);
     }
 }

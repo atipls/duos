@@ -2,12 +2,12 @@
 
 #include <Ati/Types.h>
 
-template<typename T>
+template<typename IntrusiveListNode>
 class IntrusiveList {
 public:
     IntrusiveList() : head(nullptr), tail(nullptr) {}
 
-    void Add(T *item) {
+    void Add(IntrusiveListNode *item) {
         if (head == nullptr) {
             head = item;
             tail = item;
@@ -21,7 +21,7 @@ public:
         }
     }
 
-    void Remove(T *item) {
+    void Remove(IntrusiveListNode *item) {
         if (item->prev == nullptr) {
             head = item->next;
         } else {
@@ -35,29 +35,24 @@ public:
         }
     }
 
-    T *GetHead() {
-        return head;
-    }
+    IntrusiveListNode *GetHead() { return head; }
+    IntrusiveListNode *GetTail() { return tail; }
 
-    T *GetTail() {
-        return tail;
-    }
-
-    T* PopHead() {
-        T *item = head;
+    IntrusiveListNode *PopHead() {
+        IntrusiveListNode *item = head;
         Remove(item);
         return item;
     }
 
     usize GetCount() {
         usize count = 0;
-        for (T *item = head; item != nullptr; item = item->next) {
+        for (IntrusiveListNode *item = head; item != nullptr; item = item->next) {
             count++;
         }
         return count;
     }
 
 private:
-    T *head;
-    T *tail;
+    IntrusiveListNode *head;
+    IntrusiveListNode *tail;
 };

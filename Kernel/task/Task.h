@@ -1,5 +1,6 @@
 #pragma once
 #include <Ati/Types.h>
+#include <Ati/IntrusiveList.h>
 
 struct TaskState {
     u32 r0;
@@ -33,8 +34,8 @@ struct Task {
 
     char name[32];
 
-    Task *next;
     Task *prev;
+    Task *next;
 };
 
 using TaskEntry = void (*)();
@@ -45,5 +46,6 @@ namespace Tasks {
     void Create(TaskEntry entry, TaskKind kind, char const *name);
     void Cleanup();
 
-    void Preeempt();
+    void Preempt(void *);
+    void UpdateTimers(void *);
 }// namespace Tasks

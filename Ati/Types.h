@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
 
 typedef int8_t i8;
 typedef uint8_t u8;
@@ -15,3 +15,11 @@ typedef double f64;
 
 typedef intptr_t isize;
 typedef uintptr_t usize;
+
+typedef volatile u32 RW32;
+typedef volatile u32 RO32;
+typedef volatile u32 WO32;
+
+typedef int boolean;
+#define FALSE 0
+#define TRUE 1

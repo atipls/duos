@@ -1,40 +1,32 @@
 #include "Interrupt.h"
-#include "Uart.h"
+#include "support/Logging.h"
 
 extern "C" {
-void MoveExceptionVectors();
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wattributes"
-void __attribute__((interrupt("ABORT"))) ResetHandler() { while (1) {} }
-void __attribute__((interrupt("UNDEF"))) UndefinedInstructionHandler() { while (1) {} }
-void __attribute__((interrupt("SWI"))) SoftwareInterruptHandler() { while (1) {} }
-void __attribute__((interrupt("ABORT"))) PrefetchAbortHandler() { while (1) {} }
-void __attribute__((interrupt("ABORT"))) DataAbortHandler() { while (1) {} }
-void __attribute__((interrupt("FIQ"))) FiqHandler() { while (1) {} }
-#pragma GCC diagnostic pop
+extern void Exception_UndefinedInstruction_Handler();
+extern void Exception_PrefetchAbort_Handler();
+extern void Exception_DataAbort_Handler();
+extern void Exception_Irq_Handler();
 }
 
-extern "C" void IrqHandler() {
-    for (int i = 0; i < NUMBER_OF_INTERRUPTS; i++) {
-        if (Interrupt::IsPending(i) && Interrupt::Handle(i))
-            return;
-    }
-}
+struct IrqHandler {
+    void (*handler)(void *);
+    void *userData;
+};
 
-
-
-static InterruptHandler InterruptHandlers[NUMBER_OF_INTERRUPTS];
-static InterruptClearer InterruptClearers[NUMBER_OF_INTERRUPTS];
-
-extern RW32 ExceptionVectors[8];
+static IrqHandler s_irqHandlers[NUMBER_OF_INTERRUPTS];
 
 void Interrupt::Initialize() {
-    INTERRUPT->disableBasicIrq = 0xFFFFFFFF;
-    INTERRUPT->disableIrq1 = 0xFFFFFFFF;
-    INTERRUPT->disableIrq2 = 0xFFFFFFFF;
+    auto EXCEPTIONS = EXCEPTION_TABLE_BASE;
 
-    MoveExceptionVectors();
+    EXCEPTIONS->UndefinedInstruction = ARM_OPCODE_BRANCH(ARM_DISTANCE(EXCEPTIONS->UndefinedInstruction, Exception_UndefinedInstruction_Handler));
+    EXCEPTIONS->PrefetchAbort = ARM_OPCODE_BRANCH(ARM_DISTANCE(EXCEPTIONS->PrefetchAbort, Exception_PrefetchAbort_Handler));
+    EXCEPTIONS->DataAbort = ARM_OPCODE_BRANCH(ARM_DISTANCE(EXCEPTIONS->DataAbort, Exception_DataAbort_Handler));
+    EXCEPTIONS->IRQ = ARM_OPCODE_BRANCH(ARM_DISTANCE(EXCEPTIONS->IRQ, Exception_Irq_Handler));
+
+    INTERRUPT_BASE->disableBasicIrq = 0xFFFFFFFF;
+    INTERRUPT_BASE->disableIrq1 = 0xFFFFFFFF;
+    INTERRUPT_BASE->disableIrq2 = 0xFFFFFFFF;
+
     Enable();
 }
 
@@ -55,51 +47,57 @@ void Interrupt::Disable() {
         __asm__ __volatile__("cpsid i");
 }
 
-void Interrupt::Register(usize irq, InterruptHandler handler, InterruptClearer clearer) {
+void Interrupt::Register(usize irq, void (*handler)(void *), void *userData) {
     if (irq >= NUMBER_OF_INTERRUPTS)
         return;
 
-    InterruptHandlers[irq] = handler;
-    InterruptClearers[irq] = clearer;
+    auto irqHandler = &s_irqHandlers[irq];
+
+    irqHandler->handler = handler;
+    irqHandler->userData = userData;
 
     if (IsBasic(irq))
-        INTERRUPT->enableBasicIrq |= 1 << (irq - 64);
+        INTERRUPT_BASE->enableBasicIrq |= 1 << (irq - 64);
     else if (IsGpu1(irq))
-        INTERRUPT->enableIrq1 |= 1 << irq;
+        INTERRUPT_BASE->enableIrq1 |= 1 << irq;
     else
-        INTERRUPT->enableIrq2 |= 1 << (irq - 32);
+        INTERRUPT_BASE->enableIrq2 |= 1 << (irq - 32);
 }
 
 void Interrupt::Unregister(usize irq) {
     if (irq >= NUMBER_OF_INTERRUPTS)
         return;
 
-    InterruptHandlers[irq] = nullptr;
-    InterruptClearers[irq] = nullptr;
+    auto irqHandler = &s_irqHandlers[irq];
+
+    irqHandler->handler = nullptr;
+    irqHandler->userData = nullptr;
 
     if (IsBasic(irq))
-        INTERRUPT->disableBasicIrq |= 1 << (irq - 64);
+        INTERRUPT_BASE->disableBasicIrq |= 1 << (irq - 64);
     else if (IsGpu1(irq))
-        INTERRUPT->disableIrq1 |= 1 << irq;
+        INTERRUPT_BASE->disableIrq1 |= 1 << irq;
     else
-        INTERRUPT->disableIrq2 |= 1 << (irq - 32);
+        INTERRUPT_BASE->disableIrq2 |= 1 << (irq - 32);
 }
 
-bool Interrupt::IsPending(usize irq)  {
+bool Interrupt::IsPending(usize irq) {
     if (IsBasic(irq))
-        return INTERRUPT->irqBasicPending & (1 << (irq - 64));
+        return INTERRUPT_BASE->irqBasicPending & (1 << (irq - 64));
     else if (IsGpu1(irq))
-        return INTERRUPT->irqPending1 & (1 << irq);
-    return INTERRUPT->irqPending2 & (1 << (irq - 32));
+        return INTERRUPT_BASE->irqPending1 & (1 << irq);
+    return INTERRUPT_BASE->irqPending2 & (1 << (irq - 32));
 }
 
-bool Interrupt::Handle(usize irq)  {
-    if (InterruptHandlers[irq] != nullptr) {
-        InterruptClearers[irq]();
-        Enable();
-        InterruptHandlers[irq]();
-        Disable();
-        return true;
+bool Interrupt::Handle(usize irq) {
+    // Logging::Debug("irq", "irq=%d", irq);
+    auto irqHandler = &s_irqHandlers[irq];
+    if (!irqHandler->handler) {
+        Unregister(irq);
+        return false;
     }
-    return false;
+
+    irqHandler->handler(irqHandler->userData);
+
+    return true;
 }

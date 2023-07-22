@@ -19,24 +19,21 @@ set(CMAKE_OBJCOPY ${TC_PATH} ${CROSS_COMPILE}objcopy
 set(CMAKE_OBJDUMP ${TC_PATH} ${CROSS_COMPILE}objdump
         CACHE FILEPATH "The toolchain objdump command " FORCE)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -nostartfiles")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfloat-abi=hard")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -nostartfiles")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mfloat-abi=hard")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mgeneral-regs-only")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mfpu=vfp")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv6zk")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mtune=arm1176jzf-s")
+
+set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-rtti")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfpu=vfp")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv6zk")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mtune=arm1176jzf-s")
-
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" CACHE STRING "")
-set(CMAKE_ASM_FLAGS "${CMAKE_CXX_FLAGS}" CACHE STRING "")
+set(CMAKE_ASM_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "")
 
-if (NOT RUNNING_IN_QEMU)
-    add_definitions(-DRPI0=1)
-    set(BOARD rpi0)
-else()
-    add_definitions(-DRPI2=1)
-    set(BOARD rpi2)
-endif()
+add_definitions(-DRPI0=1)
+set(BOARD rpi0)
