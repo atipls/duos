@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(SimpleSystem LANGUAGES C CXX ASM)
+project(SmallSystem LANGUAGES C CXX ASM)
 
 set(CMAKE_CXX_STANDARD 17)
 

@@ -74,17 +74,17 @@ extern "C" [[noreturn]] __attribute__((unused)) void KernelMain(usize r0, usize 
         Uart::Write("No keyboard detected!\n");
     }
 
-    USPiKeyboardRegisterKeyPressedHandler(KeyPressedHandler);
-    USPiMouseRegisterStatusHandler(MouseHandler);
+    // USPiKeyboardRegisterKeyPressedHandler(KeyPressedHandler);
+    // USPiMouseRegisterStatusHandler(MouseHandler);
 #endif
 
     Tasks::Create(Proxy::TaskEntry, TaskKind_Kernel, "Proxy Client");
-    // Tasks::Create(KernelThread, TaskKind_Kernel, "Test thread");
+    Tasks::Create(KernelThread, TaskKind_Kernel, "Test thread");
 
     while (true) {
         Gpio::Set(47, true);
         Uart::Write("Hello!\n");
-        DelayClocks(150000000);
+        DelayClocks(1500000);
         Gpio::Set(47, false);
 
         DelayClocks(1500000);

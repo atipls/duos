@@ -17,13 +17,11 @@ void Uart::Initialize() {
 }
 
 u8 Uart::RxByte() {
-    return 0;
     while (UART_BASE->fr & (1 << 4)) {}
     return UART_BASE->dr;
 }
 
 void Uart::TxByte(u8 data) {
-    return;
     while (UART_BASE->fr & (1 << 5)) {}
     UART_BASE->dr = data;
 }
@@ -46,6 +44,7 @@ void Uart::Write(const char *str) {
         str++;
     }
 }
+
 static char *ntoa(char *pDest, unsigned long ulNumber, unsigned nBase, boolean bUpcase) {
     unsigned long ulDigit;
 

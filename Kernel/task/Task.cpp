@@ -134,7 +134,7 @@ void Tasks::UpdateTimers(void *) {
         timer.hertzCounter++;
         if (timer.hertzCounter >= timer.hertzDelay) {
             timer.hertzCounter = 0;
-            timer.handler(i, timer.param, timer.context);
+            // timer.handler(i, timer.param, timer.context);
         }
     }
 
