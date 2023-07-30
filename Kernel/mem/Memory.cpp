@@ -73,6 +73,8 @@ void Memory::Initialize() {
     s_pBlockLimit = (u8 *) (memoryBase + quarterSize);
     s_pNextPage = (u8 *) ((memoryBase + quarterSize + PAGE_SIZE) & ~PAGE_MASK);
     s_pPageLimit = (u8 *) memoryLimit;
+
+    Logging::Info("kernel", "Memory: %d MiB available", memorySize / 1024 / 1024);
 }
 
 void *Memory::AllocatePage() {

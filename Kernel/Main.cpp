@@ -66,6 +66,9 @@ extern "C" [[noreturn]] __attribute__((unused)) void KernelMain() {
             framebuffer->height,
             framebuffer->pitch);
 
+    Logging::Info("kernel", "Framebuffer initialized at 0x%X", framebuffer->address);
+    Logging::Info("kernel", "Framebuffer size: %dx%d", framebuffer->width, framebuffer->height);
+
     Memory::Initialize();
     Interrupt::Initialize();
     Tasks::Initialize();

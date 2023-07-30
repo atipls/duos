@@ -1,5 +1,6 @@
 #include "TaskTimer.h"
 #include <board/Interrupt.h>
+#include <support/Logging.h>
 
 #define CLOCKHZ 1000000
 #define HZ 100
@@ -32,6 +33,8 @@ void TaskTimerTuneDelayFactors() {
     auto speedFactor = 100 * HZ / ticks;
     s_taskTimerInformation.msDelay = s_taskTimerInformation.msDelay * speedFactor / 100;
     s_taskTimerInformation.usDelay = (s_taskTimerInformation.msDelay + 500) / 1000;
+
+    Logging::Info("kernel", "Task timer tuned for speed factor %d.%d", speedFactor / 100, speedFactor % 100);
 }
 
 void TaskTimer::Initialize() {
@@ -47,6 +50,8 @@ void TaskTimer::Initialize() {
     TaskTimerTuneDelayFactors();
 
     DataMemBarrier();
+
+    Logging::Info("kernel", "Task timer initialized");
 }
 
 void TaskTimer::DelayUs(u32 us) {

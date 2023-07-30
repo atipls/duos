@@ -39,6 +39,8 @@ void Tasks::Initialize() {
     Interrupt::LeaveCriticalSection();
 
     Timer::Alert(TASK_QUANTUM_USECS);
+
+    Logging::Info("kernel", "Tasks initialized");
 }
 
 void Tasks::Create(TaskEntry entry, TaskKind kind, char const *name) {

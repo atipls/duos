@@ -48,6 +48,8 @@ void Interrupt::Initialize() {
     DataMemBarrier();
 
     Enable();
+
+    Logging::Info("kernel", "Interrupts initialized");
 }
 
 bool Interrupt::Status() {
