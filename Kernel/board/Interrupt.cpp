@@ -13,6 +13,8 @@ struct IrqHandler {
     void *userData;
 };
 
+static volatile u32 s_criticalLevelDepth = 0;
+static volatile bool s_interruptsWereEnabled = false;
 static IrqHandler s_irqHandlers[NUMBER_OF_INTERRUPTS];
 
 void Interrupt::Initialize() {
@@ -23,9 +25,27 @@ void Interrupt::Initialize() {
     EXCEPTIONS->DataAbort = ARM_OPCODE_BRANCH(ARM_DISTANCE(EXCEPTIONS->DataAbort, Exception_DataAbort_Handler));
     EXCEPTIONS->IRQ = ARM_OPCODE_BRANCH(ARM_DISTANCE(EXCEPTIONS->IRQ, Exception_Irq_Handler));
 
+    CleanDataCache();
+    DataSyncBarrier();
+
+    InvalidateInstructionCache();
+    FlushBranchTargetCache();
+    DataSyncBarrier();
+
+    InstructionSyncBarrier();
+
+    DataMemBarrier();
+
+    INTERRUPT_BASE->fiqControl = 0;
     INTERRUPT_BASE->disableBasicIrq = 0xFFFFFFFF;
     INTERRUPT_BASE->disableIrq1 = 0xFFFFFFFF;
     INTERRUPT_BASE->disableIrq2 = 0xFFFFFFFF;
+
+    INTERRUPT_BASE->irqBasicPending = INTERRUPT_BASE->irqBasicPending;
+    INTERRUPT_BASE->irqPending1 = INTERRUPT_BASE->irqPending1;
+    INTERRUPT_BASE->irqPending2 = INTERRUPT_BASE->irqPending2;
+
+    DataMemBarrier();
 
     Enable();
 }
@@ -45,6 +65,26 @@ void Interrupt::Enable() {
 void Interrupt::Disable() {
     if (Status())
         __asm__ __volatile__("cpsid i");
+}
+
+void Interrupt::EnterCriticalSection() {
+    auto interruptsWereEnabled = Status();
+    Disable();
+
+    if (s_criticalLevelDepth++ == 0)
+        s_interruptsWereEnabled = interruptsWereEnabled;
+
+    DataMemBarrier();
+}
+
+void Interrupt::LeaveCriticalSection() {
+    DataMemBarrier();
+
+    if (--s_criticalLevelDepth == 0) {
+        if (s_interruptsWereEnabled) {
+            Enable();
+        }
+    }
 }
 
 void Interrupt::Register(usize irq, void (*handler)(void *), void *userData) {
@@ -90,7 +130,6 @@ bool Interrupt::IsPending(usize irq) {
 }
 
 bool Interrupt::Handle(usize irq) {
-    // Logging::Debug("irq", "irq=%d", irq);
     auto irqHandler = &s_irqHandlers[irq];
     if (!irqHandler->handler) {
         Unregister(irq);

@@ -28,7 +28,7 @@
 #include "uspios.h"
 #include <board/Interrupt.h>
 #include <board/Registers.h>
-#include <board/Timer.h>
+#include <task/TaskTimer.h>
 #include <support/Assert.h>
 
 #define ARM_IRQ_USB 9// for ConnectInterrupt()
@@ -196,7 +196,7 @@ boolean DWHCIDeviceSetAddress(TDWHCIDevice *pThis, TUSBEndpoint *pEndpoint, u8 u
         return FALSE;
     }
 
-    Timer::DelayMs(50);// see USB 2.0 spec (tDSETADDR)
+    TaskTimer::DelayMs(50);// see USB 2.0 spec (tDSETADDR)
 
     return TRUE;
 }
@@ -208,7 +208,7 @@ boolean DWHCIDeviceSetConfiguration(TDWHCIDevice *pThis, TUSBEndpoint *pEndpoint
         return FALSE;
     }
 
-    Timer::DelayMs(50);
+    TaskTimer::DelayMs(50);
 
     return TRUE;
 }
@@ -465,14 +465,14 @@ boolean DWHCIDeviceEnableRootPort(TDWHCIDevice *pThis) {
         return FALSE;
     }
 
-    Timer::DelayMs(100);// see USB 2.0 spec
+    TaskTimer::DelayMs(100);// see USB 2.0 spec
 
     DWHCIRegisterRead(&HostPort);
     DWHCIRegisterAnd(&HostPort, ~DWHCI_HOST_PORT_DEFAULT_MASK);
     DWHCIRegisterOr(&HostPort, DWHCI_HOST_PORT_RESET);
     DWHCIRegisterWrite(&HostPort);
 
-    Timer::DelayMs(50);// see USB 2.0 spec (tDRSTR)
+    TaskTimer::DelayMs(50);// see USB 2.0 spec (tDRSTR)
 
     DWHCIRegisterRead(&HostPort);
     DWHCIRegisterAnd(&HostPort, ~DWHCI_HOST_PORT_DEFAULT_MASK);
@@ -480,7 +480,7 @@ boolean DWHCIDeviceEnableRootPort(TDWHCIDevice *pThis) {
     DWHCIRegisterWrite(&HostPort);
 
     // normally 10ms, seems to be too short for some devices
-    Timer::DelayMs(20);// see USB 2.0 spec (tRSTRCY)
+    TaskTimer::DelayMs(20);// see USB 2.0 spec (tRSTRCY)
 
     _DWHCIRegister(&HostPort);
 
@@ -510,7 +510,7 @@ boolean DWHCIDeviceReset(TDWHCIDevice *pThis) {
         return FALSE;
     }
 
-    Timer::DelayMs(100);
+    TaskTimer::DelayMs(100);
 
     _DWHCIRegister(&Reset);
 
@@ -616,7 +616,7 @@ void DWHCIDeviceFlushTxFIFO(TDWHCIDevice *pThis, unsigned nFIFO) {
     DWHCIRegisterWrite(&Reset);
 
     if (DWHCIDeviceWaitForBit(pThis, &Reset, DWHCI_CORE_RESET_TX_FIFO_FLUSH, FALSE, 10)) {
-        Timer::Delay(1);// Wait for 3 PHY clocks
+        TaskTimer::DelayUs(1);// Wait for 3 PHY clocks
     }
 
     _DWHCIRegister(&Reset);
@@ -631,7 +631,7 @@ void DWHCIDeviceFlushRxFIFO(TDWHCIDevice *pThis) {
     DWHCIRegisterWrite(&Reset);
 
     if (DWHCIDeviceWaitForBit(pThis, &Reset, DWHCI_CORE_RESET_RX_FIFO_FLUSH, FALSE, 10)) {
-        Timer::Delay(1);// Wait for 3 PHY clocks
+        TaskTimer::DelayUs(1);// Wait for 3 PHY clocks
     }
 
     _DWHCIRegister(&Reset);
@@ -1168,7 +1168,7 @@ boolean DWHCIDeviceWaitForBit(TDWHCIDevice *pThis, TDWHCIRegister *pRegister, u3
     assert(nMsTimeout > 0);
 
     while ((DWHCIRegisterRead(pRegister) & nMask) ? !bWaitUntilSet : bWaitUntilSet) {
-        Timer::DelayMs(1);
+        TaskTimer::DelayMs(1);
 
         if (--nMsTimeout == 0) {
             //LogWrite (FromDWHCI, LOG_WARNING, "Timeout");

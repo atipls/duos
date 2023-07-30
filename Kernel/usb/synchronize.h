@@ -17,8 +17,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
-#ifndef _uspi_synchronize_h
-#define _uspi_synchronize_h
+#pragma once
 
 #include "macros.h"
 #include <Ati/Types.h>
@@ -28,10 +27,6 @@
 //
 void uspi_EnterCritical (void);		// disable interrupts (nested calls possible)
 void uspi_LeaveCritical (void);		// enable interrupts (nested calls possible)
-
-#ifndef AARCH64
-
-#if RASPPI == 1
 
 //
 // Cache control
@@ -55,45 +50,3 @@ void uspi_CleanAndInvalidateDataCacheRange (u32 nAddress, u32 nLength) MAXOPT;
 #define InstructionSyncBarrier() FlushPrefetchBuffer()
 #define InstructionMemBarrier()	FlushPrefetchBuffer()
 
-#else	// #if RASPPI == 1
-
-//
-// Cache control
-//
-#define InvalidateInstructionCache()	\
-				__asm volatile ("mcr p15, 0, %0, c7, c5,  0" : : "r" (0) : "memory")
-#define FlushPrefetchBuffer()	__asm volatile ("isb" ::: "memory")
-#define FlushBranchTargetCache()	\
-				__asm volatile ("mcr p15, 0, %0, c7, c5,  6" : : "r" (0) : "memory")
-
-void uspi_CleanAndInvalidateDataCacheRange (u32 nAddress, u32 nLength) MAXOPT;
-
-//
-// Barriers
-//
-#define DataSyncBarrier()	__asm volatile ("dsb" ::: "memory")
-#define DataMemBarrier() 	__asm volatile ("dmb" ::: "memory")
-
-#define InstructionSyncBarrier() __asm volatile ("isb" ::: "memory")
-#define InstructionMemBarrier()	__asm volatile ("isb" ::: "memory")
-
-#endif	// #if RASPPI == 1
-
-#else	// #ifdef AARCH64
-
-//
-// Cache control
-//
-void uspi_CleanAndInvalidateDataCacheRange (u64 nAddress, u64 nLength) MAXOPT;
-
-//
-// Barriers
-//
-#define DataSyncBarrier()	__asm volatile ("dsb sy" ::: "memory")
-#define DataMemBarrier() 	__asm volatile ("dmb sy" ::: "memory")
-
-#endif	// #ifdef AARCH64
-
-#define CompilerBarrier()	__asm volatile ("" ::: "memory")
-
-#endif

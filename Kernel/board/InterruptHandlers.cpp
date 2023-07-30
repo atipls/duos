@@ -3,7 +3,7 @@
 #include <Ati/Types.h>
 #include <support/Logging.h>
 
-struct TAbortFrame {
+struct AbortFrame {
     u32 sp_irq;
     u32 lr_irq;
     u32 r0;
@@ -47,7 +47,7 @@ const char *ExceptionNames[] = {
     "\x1B[31mData Abort\x1B[0m",
 };
 
-extern "C" void ExceptionHandler(u32 exceptionCode, TAbortFrame *abortFrame) {
+extern "C" void ExceptionHandler(u32 exceptionCode, AbortFrame *abortFrame) {
     Interrupt::Disable();
 
     u32 lr = abortFrame->lr;

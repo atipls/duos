@@ -21,7 +21,7 @@
 #include "dwhci.h"
 #include <support/Assert.h>
 #include "uspios.h"
-#include <board/Timer.h>
+#include <task/TaskTimer.h>
 
 #define uFRAME			125		// micro seconds
 
@@ -86,7 +86,7 @@ boolean DWHCIFrameSchedulerNonPeriodicCompleteSplit (TDWHCIFrameScheduler *pBase
 
 	case StateCompleteSplit:
 	case StateCompleteRetry:
-		Timer::Delay (5 * uFRAME);
+		TaskTimer::DelayUs (5 * uFRAME);
 		bResult = TRUE;
 		break;
 
@@ -135,7 +135,7 @@ void DWHCIFrameSchedulerNonPeriodicTransactionComplete (TDWHCIFrameScheduler *pB
 		{
 			if (pThis->m_nTries-- == 0)
 			{
-				Timer::Delay (5 * uFRAME);
+				TaskTimer::DelayUs (5 * uFRAME);
 				pThis->m_nState = StateCompleteSplitFailed;
 			}
 			else

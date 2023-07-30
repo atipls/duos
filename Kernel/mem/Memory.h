@@ -6,22 +6,6 @@
 #define KERNEL_HEAP_SIZE (1024 * 1024 * 32) // 32 MiB
 #define KERNEL_STACK_SIZE (PAGE_SIZE * 32) // 128 KiB
 
-
-struct PageFlags {
-    u8 isAllocated : 1;
-    u8 isKernelData : 1;
-    u8 isKernelHeap : 1;
-    u32 reserved : 29;
-};
-
-struct Page {
-    usize address;
-    PageFlags flags;
-
-    Page *prev;
-    Page *next;
-};
-
 namespace Memory {
     void Initialize();
 

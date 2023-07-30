@@ -29,7 +29,7 @@
 #include "usbhostcontroller.h"
 #include "uspios.h"
 #include "util.h"
-#include <board/Timer.h>
+#include <task/TaskTimer.h>
 #include <mem/Memory.h>
 #include <support/Assert.h>
 
@@ -457,7 +457,7 @@ boolean SMSC951xDevicePHYWaitNotBusy (TSMSC951xDevice *pThis)
 	u32 nValue;
 	do
 	{
-		Timer::DelayMs (1);
+		TaskTimer::DelayMs (1);
 
 		if (--nTries == 0)
 		{

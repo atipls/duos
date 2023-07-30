@@ -23,7 +23,7 @@
 #include "macros.h"
 #include <support/Assert.h>
 #include <mem/Memory.h>
-#include <board/Timer.h>
+#include <task/TaskTimer.h>
 
 boolean USBStandardHubEnumeratePorts (TUSBStandardHub *pThis);
 
@@ -180,7 +180,7 @@ boolean USBStandardHubEnumeratePorts (TUSBStandardHub *pThis)
 
 	// pThis->m_pHubDesc->bPwrOn2PwrGood delay seems to be not enough
 	// for some low speed devices, so we use the maximum here
-	Timer::DelayMs (510);
+	TaskTimer::DelayMs (510);
 
 	// now detect devices, reset and initialize them
 	for (unsigned nPort = 0; nPort < pThis->m_nPorts; nPort++)
@@ -213,7 +213,7 @@ boolean USBStandardHubEnumeratePorts (TUSBStandardHub *pThis)
 			continue;
 		}
 
-		Timer::DelayMs (100);
+		TaskTimer::DelayMs (100);
 		
 		if (DWHCIDeviceControlMessage (pHost, pEndpoint0,
 			REQUEST_IN | REQUEST_CLASS | REQUEST_TO_OTHER,

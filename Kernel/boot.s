@@ -12,7 +12,6 @@
 .word 0xE160006E            /* eret */
 1:    msr    cpsr_c, \reg
 2:
-
 .endm
 
 .text
@@ -21,5 +20,12 @@
 _start:
     safe_svcmode_maskall r0
     cps #0x1F
-    mov sp, #0x8000
+    ldr sp, =__kernel_stack_top
+
+    // Enable the FPU
+    ldr r0, =(0xF << 20)
+    mcr p15, 0, r0, c1, c0, 2
+    mov r3, #0x40000000
+    vmsr fpexc, r3
+
     b KernelMain

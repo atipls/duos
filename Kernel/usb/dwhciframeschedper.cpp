@@ -21,7 +21,7 @@
 #include "dwhciregister.h"
 #include "dwhci.h"
 #include <support/Assert.h>
-#include <board/Timer.h>
+#include <task/TaskTimer.h>
 
 #include "uspios.h"
 
@@ -132,7 +132,7 @@ void DWHCIFrameSchedulerPeriodicTransactionComplete (TDWHCIFrameScheduler *pBase
 			{
 				pThis->m_nState = StateCompleteSplitFailed;
 
-				Timer::Delay (8 * uFRAME);
+				TaskTimer::DelayUs (8 * uFRAME);
 			}
 			else
 			{
@@ -141,7 +141,7 @@ void DWHCIFrameSchedulerPeriodicTransactionComplete (TDWHCIFrameScheduler *pBase
 		}
 		else if (nStatus & DWHCI_HOST_CHAN_INT_NAK)
 		{
-			Timer::Delay (5 * uFRAME);
+			TaskTimer::DelayUs (5 * uFRAME);
 			pThis->m_nState = StateCompleteSplitFailed;
 		}
 		else

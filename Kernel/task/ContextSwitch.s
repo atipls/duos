@@ -1,7 +1,6 @@
 .section ".text"
 
 .global SwitchToTask
-
 SwitchToTask:
     vmrs r2, fpexc
     vmrs r3, fpscr

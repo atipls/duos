@@ -23,7 +23,7 @@
 #include "usbhostcontroller.h"
 #include "uspios.h"
 #include "util.h"
-#include <board/Timer.h>
+#include <task/TaskTimer.h>
 #include <mem/Memory.h>
 #include <support/Assert.h>
 
@@ -310,7 +310,7 @@ boolean USBBulkOnlyMassStorageDeviceConfigure(TUSBFunction *pUSBFunction) {
             return FALSE;
         }
 
-        Timer::DelayMs(100);
+        TaskTimer::DelayMs(100);
     }
 
     if (nTries == 0) {

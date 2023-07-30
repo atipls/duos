@@ -47,5 +47,4 @@ namespace Tasks {
     void Cleanup();
 
     void Preempt(void *);
-    void UpdateTimers(void *);
 }// namespace Tasks

@@ -1,147 +1,168 @@
 #include "Memory.h"
-#include "Atag.h"
-#include "support/Logging.h"
 #include <Ati/IntrusiveList.h>
+#include <board/Interrupt.h>
+#include <board/Mailbox.h>
+#include <support/Logging.h>
 #include <support/Runtime.h>
 
-struct HeapSegmentHeader {
-    u32 isAllocated;
-    usize totalSize;
+#define BLOCK_ALIGN 16
+#define ALIGN_MASK (BLOCK_ALIGN - 1)
+#define PAGE_MASK (PAGE_SIZE - 1)
 
-    HeapSegmentHeader *prev;
-    HeapSegmentHeader *next;
+#define BLOCK_MAGIC 0x424C4D43
+#define FREEPAGE_MAGIC 0x50474D43
+
+#define MEM_HEAP_START 0x400000
+
+struct BlockHeader {
+    u32 nMagic;
+    u32 nSize;
+    BlockHeader *pNext;
+    u32 nPadding;
+    u8 Data[0];
 };
 
-extern "C" usize __binary_end;
+struct BlockBucket {
+    unsigned int nSize;
+    unsigned int nCount;
+    unsigned int nMaxCount;
+    BlockHeader *pFreeList;
+};
 
-static Page *s_pages = nullptr;
-static usize s_pageCount = 0;
-static IntrusiveList<Page> s_freePages;
+struct FreePage {
+    unsigned int nMagic;
+    FreePage *pNext;
+};
 
-static HeapSegmentHeader *s_heapSegments;
+struct PageBucket {
+    unsigned int nCount;
+    unsigned int nMaxCount;
+    FreePage *pFreeList;
+};
 
-static u32 GetMemorySize(Atag *atags) {
-    while (atags->tag != ATAG_NONE) {
-        if (atags->tag == ATAG_MEMORY)
-            return atags->memory.size;
-        atags = (Atag *) (((u32 *) atags) + atags->size);
-    }
+static u8 *s_pNextBlock;
+static u8 *s_pBlockLimit;
+static u8 *s_pNextPage;
+static u8 *s_pPageLimit;
 
-    return 256 * 1024 * 1024;// 256 MB, in qemu probably
-}
+static BlockBucket s_BlockBucket[] = {{0x40}, {0x400}, {0x1000}, {0x4000}, {0x40000}, {0x80000}, {0}};
+static PageBucket s_PageBucket;
 
-void Memory::Initialize(usize atagsAddress) {
-    auto memorySize = GetMemorySize((Atag *) atagsAddress);
+void Memory::Initialize() {
+    Mailbox::PropertyInitialize();
+    Mailbox::PropertyAdd(TAG_GET_ARM_MEMORY);
+    if (!Mailbox::PropertyExecute())
+        return;
 
-    s_pageCount = memorySize / PAGE_SIZE;
-    s_pages = (Page *) ((usize) &__binary_end + KERNEL_STACK_SIZE);
-    Logging::Info("memory", "available=%dMB, pages=%d", memorySize / 1024 / 1024, s_pageCount);
+    auto armMemoryProperty = Mailbox::PropertyGet(TAG_GET_ARM_MEMORY);
+    if (!armMemoryProperty)
+        return;
 
-    auto pageTableSize = s_pageCount * sizeof(Page);
-    auto pageTableEnd = (usize) s_pages + pageTableSize;
-    pageTableEnd += pageTableEnd % PAGE_SIZE ? PAGE_SIZE - (pageTableEnd % PAGE_SIZE) : 0;
+    auto memoryBase = armMemoryProperty->buffer32[0];
+    auto memorySize = armMemoryProperty->buffer32[1];
+    auto memoryLimit = memoryBase + memorySize;
 
-    Runtime::Zero(s_pages, pageTableSize);
+    if (memoryBase < MEM_HEAP_START)
+        memoryBase = MEM_HEAP_START;
 
-    auto currentPageIndex = 0;
-    auto kernelAllocatedPages = pageTableEnd / PAGE_SIZE;
+    memorySize = memoryLimit - memoryBase;
 
-    for (; currentPageIndex < kernelAllocatedPages; currentPageIndex++) {
-        s_pages[currentPageIndex].address = currentPageIndex * PAGE_SIZE;
-        s_pages[currentPageIndex].flags.isAllocated = 1;
-        s_pages[currentPageIndex].flags.isKernelData = 1;
-    }
+    u32 quarterSize = memorySize / 4;
 
-    // Kernel heap.
-    for (; currentPageIndex < kernelAllocatedPages + (KERNEL_HEAP_SIZE / PAGE_SIZE); currentPageIndex++) {
-        s_pages[currentPageIndex].address = currentPageIndex * PAGE_SIZE;
-        s_pages[currentPageIndex].flags.isAllocated = 1;
-        s_pages[currentPageIndex].flags.isKernelHeap = 1;
-    }
-
-    for (; currentPageIndex < s_pageCount; currentPageIndex++) {
-        s_pages[currentPageIndex].flags.isAllocated = 0;
-        s_freePages.Add(&s_pages[currentPageIndex]);
-    }
-
-    s_heapSegments = (HeapSegmentHeader *) pageTableEnd;
-    Runtime::Zero(s_heapSegments, sizeof(HeapSegmentHeader));
-    s_heapSegments->totalSize = KERNEL_HEAP_SIZE;
+    s_pNextBlock = (u8 *) memoryBase;
+    s_pBlockLimit = (u8 *) (memoryBase + quarterSize);
+    s_pNextPage = (u8 *) ((memoryBase + quarterSize + PAGE_SIZE) & ~PAGE_MASK);
+    s_pPageLimit = (u8 *) memoryLimit;
 }
 
 void *Memory::AllocatePage() {
-    if (!s_freePages.GetCount())
-        return nullptr;
+    Interrupt::EnterCriticalSection();
 
-    auto page = s_freePages.PopHead();
-    page->flags.isAllocated = 1;
-    page->flags.isKernelData = 1;
+    if (++s_PageBucket.nCount > s_PageBucket.nMaxCount)
+        s_PageBucket.nMaxCount = s_PageBucket.nCount;
 
-    auto address = (void *) ((page - s_pages) * PAGE_SIZE);
-    Runtime::Zero(address, PAGE_SIZE);
+    FreePage *freePage;
+    if ((freePage = s_PageBucket.pFreeList) != nullptr) {
+        s_PageBucket.pFreeList = freePage->pNext;
+        freePage->nMagic = 0;
+    } else {
+        freePage = (FreePage *) s_pNextPage;
+        s_pNextPage += PAGE_SIZE;
 
-    return address;
-}
-
-void Memory::DeallocatePage(void *address) {
-    auto page = s_pages + ((uint32_t) address / PAGE_SIZE);
-    page->flags.isAllocated = 0;
-    s_freePages.Add(page);
-}
-
-void *Memory::Allocate(usize size) {
-    HeapSegmentHeader *curr, *best = nullptr;
-
-    size += sizeof(HeapSegmentHeader);
-    size += size % 16 ? 16 - (size % 16) : 0;
-
-    usize bestDifference = ~0;
-    for (curr = s_heapSegments; curr; curr = curr->next) {
-        usize difference = curr->totalSize - size;
-        if (!curr->isAllocated && difference < bestDifference && curr->totalSize >= size) {
-            best = curr;
-            bestDifference = difference;
+        if (s_pNextPage > s_pPageLimit) {
+            Interrupt::LeaveCriticalSection();
+            return nullptr;
         }
     }
 
-    if (!best)
-        return nullptr;
+    Interrupt::LeaveCriticalSection();
 
-    if (bestDifference > 2 * sizeof(HeapSegmentHeader)) {
-        auto targetAddress = (HeapSegmentHeader *) ((usize) best + size);
-        Runtime::Zero(targetAddress, sizeof(HeapSegmentHeader));
+    return freePage;
+}
 
-        curr = best->next;
-        best->next = targetAddress;
-        best->next->next = curr;
-        best->next->prev = best;
-        best->next->totalSize = best->totalSize - size;
-        best->totalSize = size;
+void Memory::DeallocatePage(void *address) {
+    auto pFreePage = (FreePage *) address;
+
+    Interrupt::EnterCriticalSection();
+
+    pFreePage->nMagic = FREEPAGE_MAGIC;
+
+    pFreePage->pNext = s_PageBucket.pFreeList;
+    s_PageBucket.pFreeList = pFreePage;
+    s_PageBucket.nCount--;
+
+    Interrupt::LeaveCriticalSection();
+}
+
+void *Memory::Allocate(usize size) {
+    Interrupt::EnterCriticalSection();
+
+    BlockBucket *pBucket;
+    for (pBucket = s_BlockBucket; pBucket->nSize > 0; pBucket++) {
+        if (size <= pBucket->nSize) {
+            size = pBucket->nSize;
+            if (++pBucket->nCount > pBucket->nMaxCount)
+                pBucket->nMaxCount = pBucket->nCount;
+            break;
+        }
     }
 
-    best->isAllocated = 1;
+    BlockHeader *pBlockHeader;
+    if (pBucket->nSize > 0 && (pBlockHeader = pBucket->pFreeList) != nullptr) {
+        pBucket->pFreeList = pBlockHeader->pNext;
+    } else {
+        pBlockHeader = (BlockHeader *) s_pNextBlock;
 
-    return best + 1;
+        s_pNextBlock += (sizeof(BlockHeader) + size + BLOCK_ALIGN - 1) & ~ALIGN_MASK;
+        if (s_pNextBlock > s_pBlockLimit) {
+            Interrupt::LeaveCriticalSection();
+            return nullptr;
+        }
+
+        pBlockHeader->nMagic = BLOCK_MAGIC;
+        pBlockHeader->nSize = (unsigned) size;
+    }
+
+    Interrupt::LeaveCriticalSection();
+
+    pBlockHeader->pNext = nullptr;
+
+    return pBlockHeader->Data;
 }
 
 void Memory::Deallocate(void *address) {
-    return;
-    if (!address) return;
+    auto pBlockHeader = (BlockHeader *) ((u32) address - sizeof(BlockHeader));
+    for (auto pBucket = s_BlockBucket; pBucket->nSize > 0; pBucket++) {
+        if (pBlockHeader->nSize == pBucket->nSize) {
+            Interrupt::EnterCriticalSection();
 
-    auto segment = (HeapSegmentHeader *) ((usize) address - sizeof(HeapSegmentHeader));
-    segment->isAllocated = 0;
+            pBlockHeader->pNext = pBucket->pFreeList;
+            pBucket->pFreeList = pBlockHeader;
+            pBucket->nCount--;
 
-    while (segment->prev != nullptr && !segment->prev->isAllocated) {
-        segment->prev->next = segment->next;
-        segment->next->prev = segment->prev;
-        segment->prev->totalSize += segment->totalSize;
-        segment = segment->prev;
-    }
+            Interrupt::LeaveCriticalSection();
 
-    while (segment->next != nullptr && !segment->next->isAllocated) {
-        segment->next->next->prev = segment;
-        segment->next = segment->next->next;
-        segment->totalSize += segment->next->totalSize;
-        segment = segment->next;
+            break;
+        }
     }
 }

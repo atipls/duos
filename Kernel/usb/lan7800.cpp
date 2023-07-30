@@ -27,7 +27,7 @@
 #include "usbhostcontroller.h"
 #include "uspios.h"
 #include "util.h"
-#include <board/Timer.h>
+#include <task/TaskTimer.h>
 #include <mem/Memory.h>
 #include <support/Assert.h>
 
@@ -702,7 +702,7 @@ boolean LAN7800DeviceWaitReg (TLAN7800Device *pThis, u32 nIndex, u32 nMask, u32 
 	u32 nValue;
 	do
 	{
-		Timer::DelayMs (1);
+		TaskTimer::DelayMs (1);
 
 		if (--nTries == 0)
 		{

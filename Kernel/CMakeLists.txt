@@ -47,11 +47,12 @@ set(KERNEL_SOURCES
         board/Registers.h
         board/Timer.cpp
         board/Uart.cpp
-        mem/Atag.h
         mem/Memory.cpp
         mem/Memory.h
         task/Task.cpp
         task/Task.h
+        task/TaskTimer.cpp
+        task/TaskTimer.h
         task/ContextSwitch.s
         tasks/Proxy.cpp
         support/Runtime.cpp
@@ -62,7 +63,7 @@ set(KERNEL_SOURCES
 
         boot.s
         Main.cpp
-        usb/uspios.h support/Assert.h support/Logging.cpp support/Logging.h support/Assert.cpp board/InterruptHandlers.cpp)
+        usb/uspios.h support/Assert.h support/Logging.cpp support/Logging.h support/Assert.cpp board/InterruptHandlers.cpp task/TaskTimer.cpp task/TaskTimer.h)
 
 include_directories(.)
 add_executable(Kernel ${KERNEL_SOURCES})

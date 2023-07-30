@@ -3,7 +3,7 @@
 //
 // USPi - An USB driver for Raspberry Pi written in C
 // Copyright (C) 2014-2018  R. Stange <rsta2@o2online.de>
-// 
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
@@ -19,51 +19,15 @@
 //
 #include "synchronize.h"
 #include <Ati/Types.h>
-#include <support/Assert.h>
+#include <board/Interrupt.h>
 
-#ifndef AARCH64
-	#define	EnableInterrupts()	__asm__ __volatile__ ("cpsie i")
-	#define	DisableInterrupts()	__asm__ __volatile__ ("cpsid i")
-#else
-	#define	EnableInterrupts()	__asm volatile ("msr DAIFClr, #2")
-	#define	DisableInterrupts()	__asm volatile ("msr DAIFSet, #2")
-#endif
 
-static volatile unsigned s_nCriticalLevel = 0;
-static volatile boolean s_bWereEnabled;
-
-void uspi_EnterCritical (void)
-{
-#ifndef AARCH64
-	u32 nFlags;
-	asm volatile ("mrs %0, cpsr" : "=r" (nFlags));
-#else
-	u64 nFlags;
-	asm volatile ("mrs %0, daif" : "=r" (nFlags));
-#endif
-
-	DisableInterrupts ();
-
-	if (s_nCriticalLevel++ == 0)
-	{
-		s_bWereEnabled = nFlags & 0x80 ? FALSE : TRUE;
-	}
-
-	DataMemBarrier ();
+void uspi_EnterCritical(void) {
+    Interrupt::EnterCriticalSection();
 }
 
-void uspi_LeaveCritical (void)
-{
-	DataMemBarrier ();
-
-	assert (s_nCriticalLevel > 0);
-	if (--s_nCriticalLevel == 0)
-	{
-		if (s_bWereEnabled)
-		{
-			EnableInterrupts ();
-		}
-	}
+void uspi_LeaveCritical(void) {
+    Interrupt::LeaveCriticalSection();
 }
 
 #ifndef AARCH64
@@ -80,27 +44,27 @@ void uspi_LeaveCritical (void)
 //	 As long we use the ARM1176JZF-S implementation in the BCM2835 these static values will work:
 //
 
-#define DATA_CACHE_LINE_LENGTH		32
+#define DATA_CACHE_LINE_LENGTH 32
 
-void uspi_CleanAndInvalidateDataCacheRange (u32 nAddress, u32 nLength)
-{
-	nLength += DATA_CACHE_LINE_LENGTH;
+void uspi_CleanAndInvalidateDataCacheRange(u32 nAddress, u32 nLength) {
+    nLength += DATA_CACHE_LINE_LENGTH;
 
-	while (1)
-	{
-		asm volatile ("mcr p15, 0, %0, c7, c14,  1" : : "r" (nAddress) : "memory");
+    while (1) {
+        asm volatile("mcr p15, 0, %0, c7, c14,  1"
+                     :
+                     : "r"(nAddress)
+                     : "memory");
 
-		if (nLength < DATA_CACHE_LINE_LENGTH)
-		{
-			break;
-		}
+        if (nLength < DATA_CACHE_LINE_LENGTH) {
+            break;
+        }
 
-		nAddress += DATA_CACHE_LINE_LENGTH;
-		nLength  -= DATA_CACHE_LINE_LENGTH;
-	}
+        nAddress += DATA_CACHE_LINE_LENGTH;
+        nLength -= DATA_CACHE_LINE_LENGTH;
+    }
 }
 
-#else	// #if RASPPI == 1
+#else// #if RASPPI == 1
 
 //
 // Cache maintenance operations for ARMv7-A
@@ -115,31 +79,31 @@ void uspi_CleanAndInvalidateDataCacheRange (u32 nAddress, u32 nLength)
 //	 in the BCM2837 these static values will work:
 //
 
-#define L1_DATA_CACHE_LINE_LENGTH	64
-#define L2_CACHE_LINE_LENGTH		64
-#define DATA_CACHE_LINE_LENGTH_MIN	64		// min(L1_DATA_CACHE_LINE_LENGTH, L2_CACHE_LINE_LENGTH)
+#define L1_DATA_CACHE_LINE_LENGTH 64
+#define L2_CACHE_LINE_LENGTH 64
+#define DATA_CACHE_LINE_LENGTH_MIN 64// min(L1_DATA_CACHE_LINE_LENGTH, L2_CACHE_LINE_LENGTH)
 
-void uspi_CleanAndInvalidateDataCacheRange (u32 nAddress, u32 nLength)
-{
-	nLength += DATA_CACHE_LINE_LENGTH_MIN;
+void uspi_CleanAndInvalidateDataCacheRange(u32 nAddress, u32 nLength) {
+    nLength += DATA_CACHE_LINE_LENGTH_MIN;
 
-	while (1)
-	{
-		__asm volatile ("mcr p15, 0, %0, c7, c14,  1" : : "r" (nAddress) : "memory");	// DCCIMVAC
+    while (1) {
+        __asm volatile("mcr p15, 0, %0, c7, c14,  1"
+                       :
+                       : "r"(nAddress)
+                       : "memory");// DCCIMVAC
 
-		if (nLength < DATA_CACHE_LINE_LENGTH_MIN)
-		{
-			break;
-		}
+        if (nLength < DATA_CACHE_LINE_LENGTH_MIN) {
+            break;
+        }
 
-		nAddress += DATA_CACHE_LINE_LENGTH_MIN;
-		nLength  -= DATA_CACHE_LINE_LENGTH_MIN;
-	}
+        nAddress += DATA_CACHE_LINE_LENGTH_MIN;
+        nLength -= DATA_CACHE_LINE_LENGTH_MIN;
+    }
 }
 
-#endif	// #if RASPPI == 1
+#endif// #if RASPPI == 1
 
-#else	// #ifndef AARCH64
+#else// #ifndef AARCH64
 
 //
 // Cache maintenance operations for ARMv8-A
@@ -152,26 +116,26 @@ void uspi_CleanAndInvalidateDataCacheRange (u32 nAddress, u32 nLength)
 //	 values will work:
 //
 
-#define L1_DATA_CACHE_LINE_LENGTH	64
-#define L2_CACHE_LINE_LENGTH		64
-#define DATA_CACHE_LINE_LENGTH_MIN	64		// min(L1_DATA_CACHE_LINE_LENGTH, L2_CACHE_LINE_LENGTH)
+#define L1_DATA_CACHE_LINE_LENGTH 64
+#define L2_CACHE_LINE_LENGTH 64
+#define DATA_CACHE_LINE_LENGTH_MIN 64// min(L1_DATA_CACHE_LINE_LENGTH, L2_CACHE_LINE_LENGTH)
 
-void uspi_CleanAndInvalidateDataCacheRange (u64 nAddress, u64 nLength)
-{
-	nLength += DATA_CACHE_LINE_LENGTH_MIN;
+void uspi_CleanAndInvalidateDataCacheRange(u64 nAddress, u64 nLength) {
+    nLength += DATA_CACHE_LINE_LENGTH_MIN;
 
-	while (1)
-	{
-		asm volatile ("dc civac, %0" : : "r" (nAddress) : "memory");
+    while (1) {
+        asm volatile("dc civac, %0"
+                     :
+                     : "r"(nAddress)
+                     : "memory");
 
-		if (nLength < DATA_CACHE_LINE_LENGTH_MIN)
-		{
-			break;
-		}
+        if (nLength < DATA_CACHE_LINE_LENGTH_MIN) {
+            break;
+        }
 
-		nAddress += DATA_CACHE_LINE_LENGTH_MIN;
-		nLength  -= DATA_CACHE_LINE_LENGTH_MIN;
-	}
+        nAddress += DATA_CACHE_LINE_LENGTH_MIN;
+        nLength -= DATA_CACHE_LINE_LENGTH_MIN;
+    }
 }
 
-#endif	// #ifndef AARCH64
+#endif// #ifndef AARCH64

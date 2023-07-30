@@ -3,16 +3,15 @@
 #include <board/Framebuffer.h>
 #include <board/Gpio.h>
 #include <board/Interrupt.h>
-#include <board/Timer.h>
 #include <board/Uart.h>
 
 #include <mem/Memory.h>
 
-#include <task/Task.h>
-#include <usb/uspi.h>
 #include "support/Logging.h"
-#include "support/flanterm.h"
 #include "support/flanterm-fb.h"
+#include <task/Task.h>
+#include <task/TaskTimer.h>
+#include <usb/uspi.h>
 
 
 void DelayClocks(usize clocks) {
@@ -36,7 +35,7 @@ static void MouseHandler(u32 buttons, i32 dx, i32 dy) {
 static void KernelThread() {
     while (true) {
         Gpio::Set(47, true);
-        Logging::Info("kernel", "Hello from thread two!");
+        Logging::Info("kernel", "Hello from thread two! Interrupts are %s", Interrupt::Status() ? "enabled" : "disabled");
         DelayClocks(15000000);
         Gpio::Set(47, false);
 
@@ -45,8 +44,8 @@ static void KernelThread() {
 }
 
 static void ClearBssSection() {
-    extern u32 __bss_start;
-    extern u32 __bss_end;
+    extern u8 __bss_start;
+    extern u8 __bss_end;
 
     for (auto bss = &__bss_start; bss < &__bss_end; bss++)
         *bss = 0;
@@ -62,15 +61,15 @@ extern "C" [[noreturn]] __attribute__((unused)) void KernelMain() {
 
     auto framebuffer = Framebuffer::GetInformation();
     Logging::TerminalContext = flanterm_fb_simple_init(
-        (u32*) framebuffer->address,
-        framebuffer->width, 
-        framebuffer->height, 
-        framebuffer->pitch
-    );
+            (u32 *) framebuffer->address,
+            framebuffer->width,
+            framebuffer->height,
+            framebuffer->pitch);
 
     Memory::Initialize();
     Interrupt::Initialize();
-
+    Tasks::Initialize();
+    TaskTimer::Initialize();
 
 #if 1
     if (!USPiInitialize()) {
@@ -85,16 +84,14 @@ extern "C" [[noreturn]] __attribute__((unused)) void KernelMain() {
     USPiMouseRegisterStatusHandler(MouseHandler);
 #endif
 
-    Tasks::Initialize();
     // Tasks::Create(Proxy::TaskEntry, TaskKind_Kernel, "Proxy Client");
-    Tasks::Create(KernelThread, TaskKind_Kernel, "Test thread");
+    // Tasks::Create(KernelThread, TaskKind_Kernel, "Test thread");
 
     while (true) {
         Gpio::Set(47, true);
         Logging::Info("kernel", "Hello!");
         DelayClocks(15000000);
         Gpio::Set(47, false);
-
         DelayClocks(15000000);
     }
 }
