@@ -10,6 +10,10 @@
 
 #include <task/Task.h>
 #include <usb/uspi.h>
+#include "support/Logging.h"
+#include "support/flanterm.h"
+#include "support/flanterm-fb.h"
+
 
 void DelayClocks(usize clocks) {
     for (u32 i = 0; i < clocks; i++) {
@@ -22,71 +26,75 @@ void DelayClocks(usize clocks) {
 #define SCREEN_DEPTH 32
 
 static void KeyPressedHandler(const char *pString) {
-    Uart::Writef("Key pressed: %s\n", pString);
+    Logging::Info("kernel", "Key pressed: %s", pString);
 }
 
 static void MouseHandler(u32 buttons, i32 dx, i32 dy) {
-    Uart::Writef("Mouse status: %d (%d;%d)\n", buttons, dx, dy);
+    Logging::Info("kernel", "Mouse status: %d (%d;%d)", buttons, dx, dy);
 }
 
 static void KernelThread() {
     while (true) {
         Gpio::Set(47, true);
-        Uart::Write("Hello from thread two!\n");
-        DelayClocks(1500000);
+        Logging::Info("kernel", "Hello from thread two!");
+        DelayClocks(15000000);
         Gpio::Set(47, false);
 
-        DelayClocks(1500000);
+        DelayClocks(15000000);
     }
 }
 
-extern "C" [[noreturn]] __attribute__((unused)) void KernelMain(usize r0, usize r1, usize atagsAddress) {
-    Uart::Initialize();
-    Memory::Initialize(atagsAddress);
-    Interrupt::Initialize();
+static void ClearBssSection() {
+    extern u32 __bss_start;
+    extern u32 __bss_end;
 
+    for (auto bss = &__bss_start; bss < &__bss_end; bss++)
+        *bss = 0;
+}
+
+extern "C" [[noreturn]] __attribute__((unused)) void KernelMain() {
+    ClearBssSection();
+
+    Uart::Initialize();
     if (!Framebuffer::Initialize(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_DEPTH)) {
-        Uart::Write("Failed to initialize the framebuffer!\n");
+        Logging::Error("kernel", "Failed to initialize the framebuffer!");
     }
 
     auto framebuffer = Framebuffer::GetInformation();
-    auto address = (volatile u8 *) framebuffer->address;
+    Logging::TerminalContext = flanterm_fb_simple_init(
+        (u32*) framebuffer->address,
+        framebuffer->width, 
+        framebuffer->height, 
+        framebuffer->pitch
+    );
 
-    // Fancy rainbow
-    for (int y = 0; y < framebuffer->height; y++) {
-        for (int x = 0; x < framebuffer->width; x++) {
-            u32 offset = y * framebuffer->pitch + x * (framebuffer->depth / 8);
-            address[offset] = x * 255 / framebuffer->width;
-            address[offset + 1] = y * 255 / framebuffer->height;
-            address[offset + 2] = 255 - x * 255 / framebuffer->width;
-            address[offset + 3] = 255;
-        }
-    }
+    Memory::Initialize();
+    Interrupt::Initialize();
 
-    Tasks::Initialize();
 
 #if 1
     if (!USPiInitialize()) {
-        Uart::Write("Failed to initialize the USB stack!\n");
+        Logging::Error("kernel", "Failed to initialize the USB stack!");
     }
 
     if (!USPiKeyboardAvailable()) {
-        Uart::Write("No keyboard detected!\n");
+        Logging::Error("kernel", "No keyboard detected!");
     }
 
-    // USPiKeyboardRegisterKeyPressedHandler(KeyPressedHandler);
-    // USPiMouseRegisterStatusHandler(MouseHandler);
+    USPiKeyboardRegisterKeyPressedHandler(KeyPressedHandler);
+    USPiMouseRegisterStatusHandler(MouseHandler);
 #endif
 
-    Tasks::Create(Proxy::TaskEntry, TaskKind_Kernel, "Proxy Client");
+    Tasks::Initialize();
+    // Tasks::Create(Proxy::TaskEntry, TaskKind_Kernel, "Proxy Client");
     Tasks::Create(KernelThread, TaskKind_Kernel, "Test thread");
 
     while (true) {
         Gpio::Set(47, true);
-        Uart::Write("Hello!\n");
-        DelayClocks(1500000);
+        Logging::Info("kernel", "Hello!");
+        DelayClocks(15000000);
         Gpio::Set(47, false);
 
-        DelayClocks(1500000);
+        DelayClocks(15000000);
     }
 }

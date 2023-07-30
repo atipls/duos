@@ -1,27 +1,25 @@
-.section ".text.boot"
-.global _start
-
-_start:
-  ldr sp, =__binary_end
-  add sp, sp, #0x20000 // 128KB stack, must match up with task stack size
-
-  ldr r4, =__bss_start
-  ldr r9, =__bss_end
-  mov r5, #0
-  mov r6, #0
-  mov r7, #0
-  mov r8, #0
-  b 2f
-
-1:
-  stmia r4!, {r5-r8}
-
+.macro safe_svcmode_maskall reg:req
+    mrs \reg, cpsr
+    eor \reg, \reg, #0x1A
+    tst \reg, #0x1F
+    bic \reg, \reg, #0x1F
+    orr \reg, \reg, #0xC0 | 0x13
+    bne 1f
+    orr \reg, \reg, #0x100
+    adr lr, 2f
+    msr spsr_cxsf, \reg
+.word 0xE12EF30E            /* msr ELR_hyp, lr */
+.word 0xE160006E            /* eret */
+1:    msr    cpsr_c, \reg
 2:
-  cmp r4, r9
-  blo 1b
 
-  mov r2, #0x100
-  bl KernelMain
+.endm
 
-halt:
-    b halt
+.text
+
+.global _start
+_start:
+    safe_svcmode_maskall r0
+    cps #0x1F
+    mov sp, #0x8000
+    b KernelMain

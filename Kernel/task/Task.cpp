@@ -7,6 +7,7 @@
 #include <support/Runtime.h>
 
 #define TASK_QUANTUM_USECS 10000
+#define DEFAULT_STACK_SIZE 32 * PAGE_SIZE
 
 extern "C" usize __binary_end;
 
@@ -16,16 +17,15 @@ static IntrusiveList<Task> s_runQueue;
 static Task *s_currentTask = nullptr;
 static u32 s_taskIdCounter = 0;
 
-extern "C" void SwitchToTask(Task *oldTask, Task *newTask);
+extern "C" void SwitchToTask(TaskState *oldTask, TaskState *newTask);
 
 void Tasks::Initialize() {
     Task *idle = allocate<Task>();
-    Runtime::Zero(idle, sizeof(Task));
 
     idle->kind = TaskKind_Kernel;
     idle->pid = s_taskIdCounter++;
-    idle->stack = (void *) ((usize) &__binary_end + KERNEL_STACK_SIZE);
-    idle->state = (TaskState *) ((usize) idle->stack + PAGE_SIZE - sizeof(TaskState));
+    idle->stack = Memory::Allocate(KERNEL_STACK_SIZE);
+    idle->state = allocate<TaskState>();
 
     Runtime::Copy(idle->name, "Kernel Idle", 12);
 
@@ -36,7 +36,7 @@ void Tasks::Initialize() {
     Interrupt::Register(3, Tasks::UpdateTimers);
 
     TIMER_BASE->c3 = TIMER_BASE->clo + 1000;
-    TIMER_BASE->cs |= 1 << 3;
+    TIMER_BASE->cs = 1 << 3;
 
     Timer::Alert(TASK_QUANTUM_USECS);
 }
@@ -46,18 +46,15 @@ void Tasks::Create(TaskEntry entry, TaskKind kind, char const *name) {
 
     task->kind = kind;
     task->pid = s_taskIdCounter++;
-    task->stack = Memory::AllocatePage();
+    task->stack = Memory::Allocate(DEFAULT_STACK_SIZE);
+    task->state = allocate<TaskState>();
 
     Runtime::Copy(task->name, name, Runtime::StringLength(name));
 
-    auto state = (TaskState *) ((usize) task->stack + PAGE_SIZE - sizeof(TaskState));
-    Runtime::Zero(state, sizeof(TaskState));
-
-    state->lr = (usize) entry;
-    state->sp = (usize) Tasks::Cleanup;
-    state->cpsr = 0x13 | (8 << 1);
-
-    task->state = state;
+    task->state->lr = (usize) entry;
+    task->state->sp = (usize) task->stack + PAGE_SIZE;
+    task->state->fpexc = (1 << 30);
+    task->state->fpscr = (1 << 25);
 
     s_tasks.Add(task);
     s_runQueue.Add(task);
@@ -78,7 +75,7 @@ void Tasks::Cleanup() {
     deallocate(oldTask);
 
     Timer::Alert(TASK_QUANTUM_USECS);
-    SwitchToTask(oldTask, newTask);
+    SwitchToTask(oldTask->state, newTask->state);
 }
 
 void Tasks::Preempt(void *) {
@@ -94,7 +91,7 @@ void Tasks::Preempt(void *) {
     s_runQueue.Add(oldTask);
 
     Timer::Alert(TASK_QUANTUM_USECS);
-    SwitchToTask(oldTask, newTask);
+    SwitchToTask(oldTask->state, newTask->state);
 }
 
 
@@ -134,7 +131,7 @@ void Tasks::UpdateTimers(void *) {
         timer.hertzCounter++;
         if (timer.hertzCounter >= timer.hertzDelay) {
             timer.hertzCounter = 0;
-            // timer.handler(i, timer.param, timer.context);
+            timer.handler(i, timer.param, timer.context);
         }
     }
 

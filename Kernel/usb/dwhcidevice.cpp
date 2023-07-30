@@ -1102,6 +1102,9 @@ void DWHCIDeviceTimerHandler(TKernelTimerHandle hTimer, void *pParam, void *pCon
 
     assert(pStageData != 0);
     assert(DWHCITransferStageDataGetState(pStageData) == StageStatePeriodicDelay);
+    if (DWHCITransferStageDataGetState(pStageData) != StageStatePeriodicDelay) {
+        LogWrite(FromDWHCI, LOG_ERROR, "transfer stage state was: %d", DWHCITransferStageDataGetState(pStageData));
+    }
 
     if (DWHCITransferStageDataIsSplit(pStageData)) {
         DWHCITransferStageDataSetState(pStageData, StageStateStartSplit);

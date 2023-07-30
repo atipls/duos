@@ -3,13 +3,14 @@
 .global SwitchToTask
 
 SwitchToTask:
-    push {lr}
-    push {sp}
-    mrs r12, cpsr
-    push {r0-r12}
-    str sp, [r0]
+    vmrs r2, fpexc
+    vmrs r3, fpscr
+    stmia r0!, {r0, r2-r14}
+    vstmia r0, {d0-d15}
 
-    ldr sp, [r1]
-    pop {r0-r12}
-    msr cpsr, r12
-    pop {lr, pc}
+    ldmia r1!, {r0, r2-r14}
+    vmsr fpexc, r2
+    vmsr fpscr, r3
+    vldmia r1, {d0-d15}
+
+    bx lr

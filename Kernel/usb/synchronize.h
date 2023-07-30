@@ -23,10 +23,6 @@
 #include "macros.h"
 #include <Ati/Types.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 //
 // Interrupt synchronization
 //
@@ -99,9 +95,5 @@ void uspi_CleanAndInvalidateDataCacheRange (u64 nAddress, u64 nLength) MAXOPT;
 #endif	// #ifdef AARCH64
 
 #define CompilerBarrier()	__asm volatile ("" ::: "memory")
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

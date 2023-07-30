@@ -55,6 +55,8 @@ set(KERNEL_SOURCES
         task/ContextSwitch.s
         tasks/Proxy.cpp
         support/Runtime.cpp
+        support/flanterm.c
+        support/flanterm-fb.c
 
         ${USB_LIBRARY_SOURCES}
 

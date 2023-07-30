@@ -23,7 +23,7 @@ struct Page {
 };
 
 namespace Memory {
-    void Initialize(usize atagsAddress);
+    void Initialize();
 
     void *AllocatePage();
     void DeallocatePage(void *address);

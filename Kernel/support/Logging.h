@@ -2,6 +2,8 @@
 
 #include <Ati/Types.h>
 
+#include "flanterm.h"
+
 namespace Logging {
     enum LogLevel {
         LogLevel_Debug,
@@ -18,4 +20,6 @@ namespace Logging {
     void Warn(const char *source, const char *message, ...);
     void Error(const char *source, const char *message, ...);
     void Fatal(const char *source, const char *message, ...);
+
+    extern flanterm_context *TerminalContext;
 }

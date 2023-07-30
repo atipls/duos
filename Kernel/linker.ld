@@ -2,11 +2,10 @@ ENTRY(_start)
 
 SECTIONS
 {
-    __text_start = .;
     . = 0x8000;
+    __text_start = .;
     .text : {
-        KEEP(*(.text.boot))
-        *(.text)
+        *(.text*)
     }
     . = ALIGN(4096);
     __text_end = .;
@@ -26,13 +25,12 @@ SECTIONS
     . = ALIGN(4096);
 
     __bss_start = .;
-    .bss :
-    {
-        bss = .;
-        *(.bss)
+    .bss : {
+        *(.bss*)
     }
     . = ALIGN(4096);
     __bss_end = .;
+
     __bss_size = __bss_end - __bss_start;
 
     __binary_end = .;
