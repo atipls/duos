@@ -160,7 +160,7 @@ void FramebufferWritev(const char *format, va_list args) {
                         if (bMinus) {
                             FramebufferWriteByte('-');
                         }
-                        flanterm_write(Logging::TerminalContext, NumBuf, 12);
+                        flanterm_write(Logging::TerminalContext, NumBuf, nLen);
                         if (nWidth > nLen) {
                             for (usize i = 0; i < nWidth - nLen; i++)
                                 FramebufferWriteByte(' ');
@@ -173,7 +173,7 @@ void FramebufferWritev(const char *format, va_list args) {
                         if (bMinus) {
                             FramebufferWriteByte('-');
                         }
-                        flanterm_write(Logging::TerminalContext, NumBuf, 12);
+                        flanterm_write(Logging::TerminalContext, NumBuf, nLen);
                     }
                     break;
 
@@ -217,7 +217,7 @@ void FramebufferWritev(const char *format, va_list args) {
                     ntoa(NumBuf, ulArg, nBase, *outputCursor == 'X');
                     nLen = Runtime::StringLength(NumBuf);
                     if (bLeft) {
-                        flanterm_write(Logging::TerminalContext, NumBuf, 12);
+                        flanterm_write(Logging::TerminalContext, NumBuf, nLen);
                         if (nWidth > nLen) {
                             for (usize i = 0; i < nWidth - nLen; i++)
                                 FramebufferWriteByte(' ');
@@ -227,7 +227,7 @@ void FramebufferWritev(const char *format, va_list args) {
                             for (usize i = 0; i < nWidth - nLen; i++)
                                 FramebufferWriteByte(bNull ? '0' : ' ');
                         }
-                        flanterm_write(Logging::TerminalContext, NumBuf, 12);
+                        flanterm_write(Logging::TerminalContext, NumBuf, nLen);
                     }
                     break;
 
@@ -278,7 +278,7 @@ static void LoggerWriteFramebuffer(const char *source, int level, const char *me
 }
 
 static void LoggerWrite(const char *source, int level, const char *message, va_list args) {
-    LoggerWriteUart(source, level, message, args);
+    LoggerWriteFramebuffer(source, level, message, args);
 }
 
 

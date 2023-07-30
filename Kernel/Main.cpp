@@ -90,8 +90,8 @@ extern "C" [[noreturn]] __attribute__((unused)) void KernelMain() {
     while (true) {
         Gpio::Set(47, true);
         Logging::Info("kernel", "Hello!");
-        DelayClocks(15000000);
+        DelayClocks(150000000);
         Gpio::Set(47, false);
-        DelayClocks(15000000);
+        DelayClocks(150000000);
     }
 }
